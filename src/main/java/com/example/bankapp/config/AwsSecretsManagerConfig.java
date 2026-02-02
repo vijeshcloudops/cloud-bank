@@ -45,13 +45,13 @@ public class AwsSecretsManagerConfig {
 
             System.out.println("Secret retrieved successfully");
             ObjectMapper mapper = new ObjectMapper();
-            Map<String, String> secretMap = mapper.readValue(secretString, Map.class);
+            Map<String, Object> secretMap = mapper.readValue(secretString, Map.class);
 
-            String username = secretMap.getOrDefault("username", secretMap.get("user"));
-            String password = secretMap.get("password");
-            String host = secretMap.get("host");
-            String port = secretMap.getOrDefault("port", "3306");
-            String dbname = secretMap.getOrDefault("dbname", secretMap.get("database"));
+            String username = getStringValue(secretMap, "username", secretMap.get("user"));
+            String password = getStringValue(secretMap, "password");
+            String host = getStringValue(secretMap, "host");
+            String port = getStringValue(secretMap, "port", "3306");
+            String dbname = getStringValue(secretMap, "dbname", secretMap.get("database"));
 
             if (host == null || dbname == null) {
                 throw new IllegalStateException(
@@ -93,5 +93,20 @@ public class AwsSecretsManagerConfig {
             e.printStackTrace();
             throw new RuntimeException("Failed to create DataSource from AWS Secrets Manager", e);
         }
+    }
+
+    private String getStringValue(Map<String, Object> map, String key, Object defaultValue) {
+        Object value = map.get(key);
+        if (value == null) {
+            value = defaultValue;
+        }
+        if (value == null) {
+            return null;
+        }
+        return String.valueOf(value);
+    }
+
+    private String getStringValue(Map<String, Object> map, String key) {
+        return getStringValue(map, key, null);
     }
 }
