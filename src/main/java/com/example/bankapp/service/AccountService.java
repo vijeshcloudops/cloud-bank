@@ -1,9 +1,12 @@
 package com.example.bankapp.service;
 
+import com.example.bankapp.annotation.PrimaryDatabase;
+import com.example.bankapp.annotation.ReadReplica;
 import com.example.bankapp.model.Account;
 import com.example.bankapp.model.Transaction;
 import com.example.bankapp.repository.AccountRepository;
 import com.example.bankapp.repository.TransactionRepository;
+import com.example.bankapp.util.ReplicationLagUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -31,10 +34,12 @@ public class AccountService implements UserDetailsService {
     @Autowired
     private TransactionRepository transactionRepository;
 
+    @ReadReplica(fallbackToPrimary = true)
     public Account findAccountByUsername(String username) {
         return accountRepository.findByUsername(username).orElseThrow(() -> new RuntimeException("Account not found"));
     }
 
+    @PrimaryDatabase(trackReplication = true)
     public Account registerAccount(String username, String password) {
         if (accountRepository.findByUsername(username).isPresent()) {
             throw new RuntimeException("Username already exists");
@@ -48,6 +53,7 @@ public class AccountService implements UserDetailsService {
     }
 
 
+    @PrimaryDatabase(trackReplication = true)
     public void deposit(Account account, BigDecimal amount) {
         account.setBalance(account.getBalance().add(amount));
         accountRepository.save(account);
@@ -61,6 +67,7 @@ public class AccountService implements UserDetailsService {
         transactionRepository.save(transaction);
     }
 
+    @PrimaryDatabase(trackReplication = true)
     public void withdraw(Account account, BigDecimal amount) {
         if (account.getBalance().compareTo(amount) < 0) {
             throw new RuntimeException("Insufficient funds");
@@ -77,10 +84,12 @@ public class AccountService implements UserDetailsService {
         transactionRepository.save(transaction);
     }
 
+    @ReadReplica(fallbackToPrimary = true)
     public List<Transaction> getTransactionHistory(Account account) {
         return transactionRepository.findByAccountId(account.getId());
     }
 
+    @ReadReplica(fallbackToPrimary = true)
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
 
