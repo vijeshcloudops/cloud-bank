@@ -9,7 +9,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.sql.SQLException;
-import java.sql.SQLRecoverableException;
 
 /**
  * AOP aspect for automatic read/write datasource routing.
@@ -53,7 +52,7 @@ public class DataSourceAspect {
 
                 return joinPoint.proceed();
                 
-            } catch (SQLException | SQLRecoverableException e) {
+            } catch (SQLException e) {
                 lastException = e;
                 System.err.println("Attempt " + attempt + " failed for read replica: " + e.getMessage());
                 
@@ -114,7 +113,7 @@ public class DataSourceAspect {
                 
                 return result;
                 
-            } catch (SQLException | SQLRecoverableException e) {
+            } catch (SQLException e) {
                 lastException = e;
                 System.err.println("Attempt " + attempt + " failed for primary write: " + e.getMessage());
                 
