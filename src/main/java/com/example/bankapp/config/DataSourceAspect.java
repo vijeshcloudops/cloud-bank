@@ -39,56 +39,55 @@ public class DataSourceAspect {
         int maxRetries = failoverConfig != null ? failoverConfig.getMaxRetries() : DEFAULT_MAX_RETRIES;
         Throwable lastException = null;
         
-        for (int attempt = 1; attempt <= maxRetries; attempt++) {
-            try {
-                // Check if replica is ready (respecting replication lag)
-                if (!ReplicationLagContext.isReplicaReady() && readReplica.fallbackToPrimary()) {
-                    // Use primary database if replica is not yet synchronized
+        try {
+            for (int attempt = 1; attempt <= maxRetries; attempt++) {
+                try {
+                    // Check if replica is ready (respecting replication lag)
+                    if (!ReplicationLagContext.isReplicaReady() && readReplica.fallbackToPrimary()) {
+                        // Use primary database if replica is not yet synchronized
+                        DataSourceContext.setWritable();
+                    } else {
+                        // Route to read replica
+                        DataSourceContext.setReadOnly();
+                    }
+
+                    return joinPoint.proceed();
+                    
+                } catch (SQLException e) {
+                    lastException = e;
+                    System.err.println("Attempt " + attempt + " failed for read replica: " + e.getMessage());
+                    
+                    // If it's the last attempt, throw the exception
+                    if (attempt == maxRetries) {
+                        throw e;
+                    }
+                    
+                    // For transient errors, retry after delay
+                    if (isTransientError(e)) {
+                        System.out.println("Transient error detected. Retrying in " + RETRY_DELAY_MS + "ms...");
+                        Thread.sleep(RETRY_DELAY_MS * attempt); // Exponential backoff
+                        continue;
+                    }
+                    
+                    // For non-transient errors, fallback to primary on next attempt
+                    System.out.println("Non-transient error. Falling back to primary database.");
                     DataSourceContext.setWritable();
-                } else {
-                    // Route to read replica
-                    DataSourceContext.setReadOnly();
-                }
+                    
 
-                return joinPoint.proceed();
-                
-            } catch (SQLException e) {
-                lastException = e;
-                System.err.println("Attempt " + attempt + " failed for read replica: " + e.getMessage());
-                
-                // If it's the last attempt, throw the exception
-                if (attempt == maxRetries) {
-                    throw e;
-                }
-                
-                // For transient errors, retry after delay
-                if (isTransientError(e)) {
-                    System.out.println("Transient error detected. Retrying in " + RETRY_DELAY_MS + "ms...");
-                    Thread.sleep(RETRY_DELAY_MS * attempt); // Exponential backoff
-                    continue;
-                }
-                
-                // For non-transient errors, fallback to primary on next attempt
-                System.out.println("Non-transient error. Falling back to primary database.");
-                DataSourceContext.setWritable();
-                
-
-            } catch (Throwable e) {
-                lastException = e;
-                if (attempt == maxRetries) {
-                    throw e;
-                }
-                Thread.sleep(RETRY_DELAY_MS * attempt);
-                
-            } finally {
-                // Clear context only after last attempt
-                if (attempt == maxRetries) {
-                    DataSourceContext.clear();
+                } catch (Throwable e) {
+                    lastException = e;
+                    if (attempt == maxRetries) {
+                        throw e;
+                    }
+                    Thread.sleep(RETRY_DELAY_MS * attempt);
                 }
             }
+            
+            throw lastException;
+        } finally {
+            // Always clear context after method completes
+            DataSourceContext.clear();
         }
-        
-        throw lastException;
     }
 
     /**
@@ -101,49 +100,48 @@ public class DataSourceAspect {
         int maxRetries = failoverConfig != null ? failoverConfig.getMaxRetries() : DEFAULT_MAX_RETRIES;
         Throwable lastException = null;
         
-        for (int attempt = 1; attempt <= maxRetries; attempt++) {
-            try {
-                DataSourceContext.setWritable();
+        try {
+            for (int attempt = 1; attempt <= maxRetries; attempt++) {
+                try {
+                    DataSourceContext.setWritable();
 
-                Object result = joinPoint.proceed();
-                
-                // Record write timestamp for replication lag tracking
-                if (primaryDatabase.trackReplication()) {
-                    ReplicationLagContext.recordWrite();
-                }
-                
-                return result;
-                
-            } catch (SQLException e) {
-                lastException = e;
-                System.err.println("Attempt " + attempt + " failed for primary write: " + e.getMessage());
-                
-                if (attempt == maxRetries) {
-                    throw e;
-                }
-                
-                // Retry with exponential backoff for transient errors
-                if (isTransientError(e)) {
-                    System.out.println("Transient error on primary. Retrying in " + (RETRY_DELAY_MS * attempt) + "ms...");
+                    Object result = joinPoint.proceed();
+                    
+                    // Record write timestamp for replication lag tracking
+                    if (primaryDatabase.trackReplication()) {
+                        ReplicationLagContext.recordWrite();
+                    }
+                    
+                    return result;
+                    
+                } catch (SQLException e) {
+                    lastException = e;
+                    System.err.println("Attempt " + attempt + " failed for primary write: " + e.getMessage());
+                    
+                    if (attempt == maxRetries) {
+                        throw e;
+                    }
+                    
+                    // Retry with exponential backoff for transient errors
+                    if (isTransientError(e)) {
+                        System.out.println("Transient error on primary. Retrying in " + (RETRY_DELAY_MS * attempt) + "ms...");
+                        Thread.sleep(RETRY_DELAY_MS * attempt);
+                    }
+                    
+                } catch (Throwable e) {
+                    lastException = e;
+                    if (attempt == maxRetries) {
+                        throw e;
+                    }
                     Thread.sleep(RETRY_DELAY_MS * attempt);
                 }
-                
-            } catch (Throwable e) {
-                lastException = e;
-                if (attempt == maxRetries) {
-                    throw e;
-                }
-                Thread.sleep(RETRY_DELAY_MS * attempt);
-                
-            } finally {
-                // Clear context only after last attempt
-                if (attempt == maxRetries) {
-                    DataSourceContext.clear();
-                }
             }
+            
+            throw lastException;
+        } finally {
+            // Always clear context after method completes
+            DataSourceContext.clear();
         }
-        
-        throw lastException;
     }
 
     /**
