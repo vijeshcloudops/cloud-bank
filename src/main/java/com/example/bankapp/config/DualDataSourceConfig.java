@@ -144,7 +144,7 @@ public class DualDataSourceConfig {
                 );
             }
 
-            String url = String.format("jdbc:mysql://%s:%s/%s?useSSL=true&serverTimezone=UTC&allowPublicKeyRetrieval=true", 
+            String url = String.format("jdbc:mysql://%s:%s/%s?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true", 
                     host, port, dbname);
             
             System.out.println("DataSource URL: " + url);
