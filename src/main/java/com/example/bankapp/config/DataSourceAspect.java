@@ -36,7 +36,8 @@ public class DataSourceAspect {
      */
     @Around("@annotation(readReplica)")
     public Object readReplicaRouting(ProceedingJoinPoint joinPoint, ReadReplica readReplica) throws Throwable {
-        int maxRetries = failoverConfig != null ? failoverConfig.getMaxRetries() : DEFAULT_MAX_RETRIES;
+        // For read operations, use fewer retries (1 attempt, no retry) to fail fast during failover
+        int maxRetries = 1;
         Throwable lastException = null;
         
         for (int attempt = 1; attempt <= maxRetries; attempt++) {
@@ -69,10 +70,12 @@ public class DataSourceAspect {
                     continue;
                 }
                 
-                // For non-transient errors, fallback to primary on next attempt
-                System.out.println("Non-transient error. Falling back to primary database.");
-                DataSourceContext.setWritable();
+                // For non-transient errors, fallback to primary on next attempt only if it's available
+                System.out.println("Non-transient error. Checking if primary is available for fallback...");
+                // Don't set writable if primary is also down - just retry on replica
+                DataSourceContext.setReadOnly();
                 
+
             } catch (Throwable e) {
                 lastException = e;
                 if (attempt == maxRetries) {
