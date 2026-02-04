@@ -38,15 +38,13 @@ public class ReadWriteRoutingDataSource extends AbstractRoutingDataSource {
             
             // If replica is down, failover to primary
             if (!replicaAvailable) {
-                System.out.println("❌ FAILOVER: Replica unavailable, routing READ to PRIMARY");
+                System.out.println("FAILOVER: Replica unavailable, routing READ to PRIMARY");
                 return "WRITE";
             }
             
-            System.out.println("✅ Routing READ operation to REPLICA datasource");
             return "READ";
         }
         
-        System.out.println("✅ Routing WRITE operation to PRIMARY datasource");
         return "WRITE";
     }
 

@@ -150,13 +150,12 @@ public class DualDataSourceConfig {
             System.out.println("DataSource URL: " + url);
             System.out.println("Username: " + username);
 
-            // Use failover-aware resilient datasource instead of plain DataSourceBuilder
-            return failoverConfig.createResilientDataSource(
-                    "com.mysql.cj.jdbc.Driver",
-                    url,
-                    username,
-                    password
-            );
+            return DataSourceBuilder.create()
+                    .driverClassName("com.mysql.cj.jdbc.Driver")
+                    .url(url)
+                    .username(username)
+                    .password(password)
+                    .build();
         } catch (Exception e) {
             System.err.println("ERROR: Failed to create DataSource from AWS Secrets Manager: " + secretName);
             System.err.println("Exception: " + e.getMessage());
