@@ -81,8 +81,10 @@ public class DataSourceAspect {
                 Thread.sleep(RETRY_DELAY_MS * attempt);
                 
             } finally {
-                // Always clear context after each attempt
-                DataSourceContext.clear();
+                // Clear context only after last attempt
+                if (attempt == maxRetries) {
+                    DataSourceContext.clear();
+                }
             }
         }
         
@@ -134,8 +136,10 @@ public class DataSourceAspect {
                 Thread.sleep(RETRY_DELAY_MS * attempt);
                 
             } finally {
-                // Always clear context after each attempt
-                DataSourceContext.clear();
+                // Clear context only after last attempt
+                if (attempt == maxRetries) {
+                    DataSourceContext.clear();
+                }
             }
         }
         
