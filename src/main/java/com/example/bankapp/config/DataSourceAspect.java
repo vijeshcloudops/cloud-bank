@@ -50,6 +50,7 @@ public class DataSourceAspect {
                     DataSourceContext.setReadOnly();
                 }
 
+                DataSourceContext.clear();
                 return joinPoint.proceed();
                 
             } catch (SQLException e) {
@@ -80,10 +81,8 @@ public class DataSourceAspect {
                 Thread.sleep(RETRY_DELAY_MS * attempt);
                 
             } finally {
-                // Clear context after each attempt
-                if (attempt == maxRetries) {
-                    DataSourceContext.clear();
-                }
+                // Always clear context after each attempt
+                DataSourceContext.clear();
             }
         }
         
@@ -135,9 +134,8 @@ public class DataSourceAspect {
                 Thread.sleep(RETRY_DELAY_MS * attempt);
                 
             } finally {
-                if (attempt == maxRetries) {
-                    DataSourceContext.clear();
-                }
+                // Always clear context after each attempt
+                DataSourceContext.clear();
             }
         }
         
