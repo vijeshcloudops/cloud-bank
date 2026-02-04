@@ -1,6 +1,7 @@
 package com.example.bankapp.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.jdbc.DataSourceBuilder;
 import org.springframework.context.annotation.Bean;
@@ -23,6 +24,9 @@ import java.util.Map;
 @Configuration
 public class DualDataSourceConfig {
 
+    @Autowired
+    private FailoverAwareDataSourceConfig failoverConfig;
+
     @Value("${aws.secrets.name}")
     private String primarySecretName;
 
@@ -37,6 +41,9 @@ public class DualDataSourceConfig {
 
     @Value("${rds.replica.host:}")
     private String replicaHost;
+
+    @Value("${rds.failover.enabled:true}")
+    private boolean failoverEnabled;
 
     /**
      * Create datasource for primary (write) database from AWS Secrets Manager or config.
@@ -70,11 +77,18 @@ public class DualDataSourceConfig {
 
     /**
      * Create routing datasource that switches between primary and replica.
+     * Includes failover handling for when replica becomes unavailable.
      */
     @Bean
     @Primary
     public DataSource dataSource(DataSource primaryDataSource, DataSource replicaDataSource) {
         ReadWriteRoutingDataSource routingDataSource = new ReadWriteRoutingDataSource();
+        
+        // Add failover awareness to routing datasource
+        if (failoverConfig != null) {
+            routingDataSource.setFailoverConfig(failoverConfig);
+            routingDataSource.setReplicaDataSource(replicaDataSource);
+        }
         
         Map<Object, Object> targetDataSources = new HashMap<>();
         targetDataSources.put("WRITE", primaryDataSource);
@@ -87,6 +101,7 @@ public class DualDataSourceConfig {
         System.out.println("Routing DataSource configured successfully");
         System.out.println("WRITE operations -> Primary Database");
         System.out.println("READ operations  -> Replica Database");
+        System.out.println("Failover enabled -> " + failoverEnabled);
         System.out.println("========================================");
 
         return routingDataSource;
