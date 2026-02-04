@@ -16,18 +16,27 @@ public class DataSourceContext {
 
     public static void setReadOnly() {
         contextHolder.set(new DataSourceContext(true));
+        System.out.println("🔵 DataSourceContext set to READ-ONLY (Replica)");
     }
 
     public static void setWritable() {
         contextHolder.set(new DataSourceContext(false));
+        System.out.println("🔴 DataSourceContext set to WRITABLE (Primary)");
     }
 
     public static DataSourceContext get() {
-        return contextHolder.get();
+        DataSourceContext ctx = contextHolder.get();
+        if (ctx != null) {
+            System.out.println("📍 DataSourceContext retrieved: " + (ctx.isReadOnly() ? "READ" : "WRITE"));
+        } else {
+            System.out.println("⚠️  DataSourceContext is NULL - will use default (PRIMARY)");
+        }
+        return ctx;
     }
 
     public static void clear() {
         contextHolder.remove();
+        System.out.println("🧹 DataSourceContext cleared");
     }
 
     public boolean isReadOnly() {

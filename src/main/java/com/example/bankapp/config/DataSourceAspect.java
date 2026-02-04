@@ -51,7 +51,6 @@ public class DataSourceAspect {
                     DataSourceContext.setReadOnly();
                 }
 
-                DataSourceContext.clear();
                 return joinPoint.proceed();
                 
             } catch (SQLException e) {
