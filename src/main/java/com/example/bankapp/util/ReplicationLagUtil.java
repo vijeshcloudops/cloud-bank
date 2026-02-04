@@ -29,7 +29,7 @@ public class ReplicationLagUtil {
         
         while (!ReplicationLagContext.isReplicaReady()) {
             if (System.currentTimeMillis() - startTime > maxWaitTimeMs) {
-                System.warn("Replication lag exceeded " + maxWaitTimeMs + "ms, proceeding with read");
+                System.err.println("WARNING: Replication lag exceeded " + maxWaitTimeMs + "ms, proceeding with read");
                 break;
             }
             
